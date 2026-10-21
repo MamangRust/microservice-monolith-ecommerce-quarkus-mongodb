@@ -113,7 +113,7 @@ done
 pass "Kafka topics command available"
 
 # Create stats topics
-for topic in stats.ecommerce.order.event stats.ecommerce.order_item.event stats.ecommerce.transaction.event; do
+for topic in order.event order_item.event transactions.event; do
     docker exec e2e-kafka $KAFKA_TOPICS --bootstrap-server localhost:9092 --create --if-not-exists --topic "$topic" --partitions 1 --replication-factor 1 2>/dev/null
 done
 pass "3 Kafka stats topics created"
@@ -157,10 +157,10 @@ PRODUCE_ORDER2='{"event_id":"e2e-order-002","event_type":"order.created","occurr
 
 docker exec -i e2e-kafka /opt/kafka/bin/kafka-console-producer.sh \
     --bootstrap-server localhost:9092 \
-    --topic stats.ecommerce.order.event <<< "$PRODUCE_ORDER"
+    --topic order.event <<< "$PRODUCE_ORDER"
 docker exec -i e2e-kafka /opt/kafka/bin/kafka-console-producer.sh \
     --bootstrap-server localhost:9092 \
-    --topic stats.ecommerce.order.event <<< "$PRODUCE_ORDER2"
+    --topic order.event <<< "$PRODUCE_ORDER2"
 pass "2 order events produced to Kafka"
 
 # Produce test transaction events
@@ -169,10 +169,10 @@ PRODUCE_TXN2='{"event_id":"e2e-txn-002","event_type":"transaction.created","occu
 
 docker exec -i e2e-kafka /opt/kafka/bin/kafka-console-producer.sh \
     --bootstrap-server localhost:9092 \
-    --topic stats.ecommerce.transaction.event <<< "$PRODUCE_TXN1"
+    --topic transactions.event <<< "$PRODUCE_TXN1"
 docker exec -i e2e-kafka /opt/kafka/bin/kafka-console-producer.sh \
     --bootstrap-server localhost:9092 \
-    --topic stats.ecommerce.transaction.event <<< "$PRODUCE_TXN2"
+    --topic transactions.event <<< "$PRODUCE_TXN2"
 pass "2 transaction events produced to Kafka"
 
 echo ""

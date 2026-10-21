@@ -723,6 +723,8 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
+      kafka-topics-init:
+        condition: service_completed_successfully
       clickhouse:
         condition: service_healthy
       otel-collector:
@@ -805,6 +807,41 @@ services:
       timeout: 10s
       retries: 5
       start_period: 30s
+
+  # One-shot topic provisioning (mirrors the K8s kafka-create-stats-topics Job).
+  # Relies on Kafka auto-create as a fallback, but this makes topic existence
+  # deterministic and independent of auto.create.topics.enable. Uses the same
+  # bitnami image as the broker; PATH is exported so kafka-topics.sh resolves
+  # even when command overrides the image entrypoint.
+  kafka-topics-init:
+    image: bitnami/kafka:latest
+    container_name: kafka-topics-init-ecommerce
+    networks:
+      - app_ecommerce_network
+    depends_on:
+      kafka:
+        condition: service_started
+    restart: "no"
+    command:
+      - /bin/sh
+      - -c
+      - |
+        export PATH=/opt/bitnami/kafka/bin:$$PATH
+        BOOTSTRAP="kafka:9092"
+        echo "Waiting for Kafka broker at $$BOOTSTRAP ..."
+        until kafka-topics.sh --bootstrap-server "$$BOOTSTRAP" --list >/dev/null 2>&1; do
+          echo "Kafka not ready yet, retrying in 5s..."
+          sleep 5
+        done
+        echo "Kafka is ready."
+        for topic in \
+          transactions.event \
+          order.event \
+          order_item.event; do
+          kafka-topics.sh --bootstrap-server "$$BOOTSTRAP" --create --if-not-exists \
+            --replication-factor 1 --partitions 1 --topic "$$topic"
+        done
+        echo "All ecommerce stats topics created (or already exist)."
 
   kafka-exporter:
     image: danielqsj/kafka-exporter:v1.9.0
